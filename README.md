@@ -47,3 +47,6 @@ http://localhost:5000
 - `POST /api/toggle_alarm/<username>`: Toggle a user's alarm status
 - `GET /api/check_alarm_status`: Check if all alarms are active
 - `GET /api/get_alarm_time`: Get the current alarm time 
+
+
+https://maker.ifttt.com/trigger/Play%20sound/with/key/cf_7Y_sYGjb85DLLGlUdlw
