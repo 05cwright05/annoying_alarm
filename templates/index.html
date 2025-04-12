@@ -6,95 +6,165 @@
     <title>Alarm System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .container { max-width: 800px; margin-top: 50px; }
-        .alarm-status { font-size: 1.2em; margin: 20px 0; }
-        .user-list { margin-top: 30px; }
-        .user-item { margin-bottom: 10px; }
-        .alarm-time { font-size: 1.1em; margin: 10px 0; }
-        .status-active { color: green; }
-        .status-inactive { color: red; }
-        .alert { display: none; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .auth-section {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        .alarm-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .user-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .active {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .inactive {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .alert {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        .alert-success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="text-center mb-4">Alarm System</h1>
-        
-        <div class="alert alert-success" id="successAlert" role="alert">
-            Alarm time set successfully! All users' alarms have been activated.
-        </div>
-        
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Set Alarm Time</h5>
-                <div class="mb-3">
-                    <input type="datetime-local" class="form-control" id="alarmTime">
-                </div>
-                <button class="btn btn-primary" onclick="setAlarmTime()">Set Alarm</button>
-                <div id="currentAlarmTime" class="alarm-time mt-2">
-                    Current Alarm Time: <span id="alarmTimeDisplay">Not set</span>
-                </div>
-            </div>
-        </div>
+    <div class="auth-section">
+        {% if current_user.is_authenticated %}
+            <span>Welcome, {{ current_user.username }}!</span>
+            <a href="{{ url_for('logout') }}"><button>Logout</button></a>
+        {% else %}
+            <a href="{{ url_for('login') }}"><button>Login</button></a>
+            <a href="{{ url_for('register') }}"><button>Register</button></a>
+        {% endif %}
+    </div>
 
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Current Alarm Status</h5>
-                <div id="alarmStatus" class="alarm-status">
-                    Loading...
-                </div>
-                <div class="user-list">
-                    <h6>Users</h6>
-                    <button class="btn btn-success mb-3" onclick="addUser()">Add User</button>
-                    <div id="userList">
-                        <!-- Users will be added here -->
-                    </div>
-                </div>
-            </div>
+    <h1>Alarm System</h1>
+    
+    <div id="successAlert" class="alert alert-success">
+        Operation completed successfully!
+    </div>
+
+    <div class="alarm-section">
+        <h2>Set Alarm Time</h2>
+        <div>
+            <input type="datetime-local" id="alarmTime">
+            <button onclick="setAlarm()">Set Alarm</button>
+        </div>
+        <div id="currentAlarm" class="status">
+            Current alarm time: <span id="alarmTimeDisplay">Not set</span>
+        </div>
+    </div>
+
+    {% if current_user.is_authenticated %}
+    <div class="user-section">
+        <h2>Your Alarm Status</h2>
+        <div id="userStatus" class="status"></div>
+        <button onclick="toggleAlarm()" id="toggleButton">Toggle Alarm</button>
+    </div>
+    {% endif %}
+
+    <div class="alarm-section">
+        <h2>System Status</h2>
+        <div id="systemStatus" class="status"></div>
+        <div id="userList">
+            <h3>All Users</h3>
+            <!-- User list will be populated here -->
         </div>
     </div>
 
     <script>
-        function showAlert() {
+        let alarmTime = null;
+        let userAlarmActive = false;
+
+        function showAlert(message) {
             const alert = document.getElementById('successAlert');
+            alert.textContent = message;
             alert.style.display = 'block';
             setTimeout(() => {
                 alert.style.display = 'none';
             }, 3000);
         }
 
-        function updateAlarmStatus() {
-            fetch('/api/check_alarm_status')
-                .then(response => response.json())
-                .then(data => {
-                    const statusDiv = document.getElementById('alarmStatus');
-                    statusDiv.innerHTML = `All alarms are ${data.all_active ? 'active' : 'inactive'}`;
-                    statusDiv.className = `alarm-status ${data.all_active ? 'text-success' : 'text-danger'}`;
-                    
-                    // Update user states
-                    updateUserList(data.user_states);
-                });
+        function updateDisplay() {
+            // Update alarm time display
+            const alarmTimeDisplay = document.getElementById('alarmTimeDisplay');
+            if (alarmTime) {
+                alarmTimeDisplay.textContent = new Date(alarmTime).toLocaleString();
+            } else {
+                alarmTimeDisplay.textContent = 'Not set';
+            }
+
+            // Update user status if logged in
+            const userStatus = document.getElementById('userStatus');
+            const toggleButton = document.getElementById('toggleButton');
+            if (userStatus && toggleButton) {
+                userStatus.textContent = `Your alarm is ${userAlarmActive ? 'active' : 'inactive'}`;
+                userStatus.className = `status ${userAlarmActive ? 'active' : 'inactive'}`;
+                toggleButton.textContent = userAlarmActive ? 'Turn Off Alarm' : 'Turn On Alarm';
+            }
         }
 
-        function updateAlarmTime() {
-            fetch('/api/get_alarm_time')
-                .then(response => response.json())
-                .then(data => {
-                    const timeDisplay = document.getElementById('alarmTimeDisplay');
-                    if (data.alarm_time) {
-                        timeDisplay.textContent = data.alarm_time;
-                    } else {
-                        timeDisplay.textContent = 'Not set';
-                    }
-                });
+        function updateUserList(userStates) {
+            const userList = document.getElementById('userList');
+            const userListContent = document.createElement('div');
+            
+            Object.entries(userStates).forEach(([username, isActive]) => {
+                const userDiv = document.createElement('div');
+                userDiv.className = `status ${isActive ? 'active' : 'inactive'}`;
+                userDiv.textContent = `${username}: ${isActive ? 'Active' : 'Inactive'}`;
+                userListContent.appendChild(userDiv);
+            });
+            
+            // Replace existing content
+            userList.innerHTML = '<h3>All Users</h3>';
+            userList.appendChild(userListContent);
         }
 
-        function setAlarmTime() {
+        function setAlarm() {
             const timeInput = document.getElementById('alarmTime');
             const time = timeInput.value;
             
             if (!time) {
-                alert('Please select a time first!');
+                showAlert('Please select a time first!');
                 return;
             }
             
@@ -108,75 +178,76 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    showAlert();
-                    updateAlarmStatus();
-                    updateAlarmTime();
+                    alarmTime = time;
+                    showAlert('Alarm time set successfully!');
+                    updateDisplay();
+                    checkAlarmStatus();
                 } else {
-                    alert('Error setting alarm time');
+                    showAlert('Error setting alarm time');
                 }
             });
         }
 
-        function toggleUserAlarm(username) {
-            fetch(`/api/toggle_alarm/${username}`, {
+        function toggleAlarm() {
+            fetch('/api/toggle_alarm', {
                 method: 'POST'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    updateAlarmStatus();
+                    userAlarmActive = data.alarm_active;
+                    showAlert('Alarm status updated successfully!');
+                    updateDisplay();
+                    checkAlarmStatus();
                 }
             });
         }
 
-        function updateUserList(userStates) {
-            const userListDiv = document.getElementById('userList');
-            userListDiv.innerHTML = '';
-            
-            Object.entries(userStates).forEach(([username, isActive]) => {
-                const userDiv = document.createElement('div');
-                userDiv.className = 'user-item d-flex justify-content-between align-items-center';
-                userDiv.innerHTML = `
-                    <span>${username}</span>
-                    <div>
-                        <span class="${isActive ? 'status-active' : 'status-inactive'}">
-                            ${isActive ? 'Active' : 'Inactive'}
-                        </span>
-                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="toggleUserAlarm('${username}')">
-                            Toggle
-                        </button>
-                    </div>
-                `;
-                userListDiv.appendChild(userDiv);
+        function checkAlarmStatus() {
+            fetch('/api/check_alarm_status')
+            .then(response => response.json())
+            .then(data => {
+                const systemStatus = document.getElementById('systemStatus');
+                systemStatus.textContent = `System Status: ${data.all_active ? 'All alarms active' : 'Some alarms inactive'}`;
+                systemStatus.className = `status ${data.all_active ? 'active' : 'inactive'}`;
+                updateUserList(data.user_states);
             });
         }
 
-        function addUser() {
-            const username = prompt('Enter username:');
-            if (username) {
-                fetch(`/api/toggle_alarm/${username}`, {
-                    method: 'POST'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        updateAlarmStatus();
-                    }
-                });
-            }
+        function getAlarmTime() {
+            fetch('/api/get_alarm_time')
+            .then(response => response.json())
+            .then(data => {
+                if (data.alarm_time) {
+                    alarmTime = data.alarm_time;
+                    updateDisplay();
+                }
+            });
         }
 
-        // Initial status update
-        document.addEventListener('DOMContentLoaded', () => {
-            updateAlarmStatus();
-            updateAlarmTime();
-            
-            // Update status every 5 seconds
-            setInterval(() => {
-                updateAlarmStatus();
-                updateAlarmTime();
-            }, 5000);
-        });
+        function checkUserState() {
+            fetch('/api/check_user_state')
+            .then(response => response.json())
+            .then(data => {
+                userAlarmActive = data.alarm_active;
+                updateDisplay();
+            });
+        }
+
+        // Initial load
+        getAlarmTime();
+        checkAlarmStatus();
+        if (document.getElementById('userStatus')) {
+            checkUserState();
+        }
+
+        // Update status every 5 seconds
+        setInterval(() => {
+            checkAlarmStatus();
+            if (document.getElementById('userStatus')) {
+                checkUserState();
+            }
+        }, 5000);
     </script>
 </body>
 </html> 
