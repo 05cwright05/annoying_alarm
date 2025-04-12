@@ -6,6 +6,10 @@ import sys
 import os
 import numpy as np
 
+# IFTTT Webhook URLs
+IFTTT_URL1 = "https://maker.ifttt.com/trigger/Play%20sound/with/key/cf_7Y_sYGjb85DLLGlUdlw"
+IFTTT_URL2 = "https://maker.ifttt.com/trigger/playsound/with/key/bs23apiBsmbF3lcKQKaNOT"
+
 def check_alarm_time(alarm_time):
     """Check if current time matches alarm time"""
     current_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M")
@@ -43,8 +47,21 @@ def initialize_pygame():
         print(f"Error initializing sound system: {e}")
         return False
 
+def trigger_ifttt_webhooks():
+    """Trigger both IFTTT webhooks"""
+    try:
+        print("Triggering IFTTT webhooks...")
+        response1 = requests.post(IFTTT_URL1)
+        response2 = requests.post(IFTTT_URL2)
+        print(f"IFTTT URL1 response: {response1.status_code}")
+        print(f"IFTTT URL2 response: {response2.status_code}")
+        return response1.status_code == 200 and response2.status_code == 200
+    except Exception as e:
+        print(f"Error triggering IFTTT webhooks: {e}")
+        return False
+
 def play_alarm():
-    """Play the alarm sound"""
+    """Play the alarm sound and trigger IFTTT webhooks"""
     try:
         if not pygame.mixer.get_init():
             if not initialize_pygame():
@@ -54,7 +71,11 @@ def play_alarm():
         beep_sound = generate_beep()
         sound = pygame.sndarray.make_sound(beep_sound)
         sound.play()
-        print("Playing alarm sound...")
+        
+        # Trigger IFTTT webhooks
+        trigger_ifttt_webhooks()
+        
+        print("Playing alarm sound and triggering webhooks...")
     except Exception as e:
         print(f"Error playing sound: {e}")
 
