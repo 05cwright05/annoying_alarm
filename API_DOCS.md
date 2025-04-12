@@ -146,6 +146,83 @@ Get the currently set alarm time.
 }
 ```
 
+### 7. User Registration
+Register a new user.
+
+**Endpoint:** `/api/register`  
+**Method:** `POST`  
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+    "username": "newuser",
+    "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+    "status": "success",
+    "message": "User registered successfully"
+}
+```
+
+**Error Response:**
+```json
+{
+    "status": "error",
+    "message": "Username already exists"
+}
+```
+
+### 8. User Login
+Authenticate a user and get a session token.
+
+**Endpoint:** `/api/login`  
+**Method:** `POST`  
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+    "username": "username",
+    "password": "password"
+}
+```
+
+**Response:**
+```json
+{
+    "status": "success",
+    "message": "Login successful",
+    "token": "session_token_here"
+}
+```
+
+**Error Response:**
+```json
+{
+    "status": "error",
+    "message": "Invalid username or password"
+}
+```
+
+### 9. User Logout
+Logout the current user and invalidate the session.
+
+**Endpoint:** `/api/logout`  
+**Method:** `POST`
+
+**Response:**
+```json
+{
+    "status": "success",
+    "message": "Logged out successfully"
+}
+```
+
 ## Example Usage
 
 ### Setting an Alarm
@@ -168,6 +245,25 @@ curl http://localhost:5000/api/check_all_false
 ### Checking a Specific User's State
 ```bash
 curl http://localhost:5000/api/check_user_state/john
+```
+
+### Registering a New User
+```bash
+curl -X POST http://localhost:5000/api/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "newuser", "password": "password123"}'
+```
+
+### Logging In
+```bash
+curl -X POST http://localhost:5000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "username", "password": "password"}'
+```
+
+### Logging Out
+```bash
+curl -X POST http://localhost:5000/api/logout
 ```
 
 ## Notes
