@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container { max-width: 800px; margin-top: 50px; }
+        .alarm-status { font-size: 1.2em; margin: 20px 0; }
+        .user-list { margin-top: 30px; }
+        .user-item { margin-bottom: 10px; }
+        .alarm-time { font-size: 1.1em; margin: 10px 0; }
+        .status-active { color: green; }
+        .status-inactive { color: red; }
+        .alert { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Alarm System</h1>
+        
+        <div class="alert alert-success" id="successAlert" role="alert">
+            Alarm time set successfully! All users' alarms have been activated.
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Set Alarm Time</h5>
+                <div class="mb-3">
+                    <input type="datetime-local" class="form-control" id="alarmTime">
+                </div>
+                <button class="btn btn-primary" onclick="setAlarmTime()">Set Alarm</button>
+                <div id="currentAlarmTime" class="alarm-time mt-2">
+                    Current Alarm Time: <span id="alarmTimeDisplay">Not set</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Current Alarm Status</h5>
+                <div id="alarmStatus" class="alarm-status">
+                    Loading...
+                </div>
+                <div class="user-list">
+                    <h6>Users</h6>
+                    <button class="btn btn-success mb-3" onclick="addUser()">Add User</button>
+                    <div id="userList">
+                        <!-- Users will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showAlert() {
+            const alert = document.getElementById('successAlert');
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 3000);
+        }
+
+        function updateAlarmStatus() {
+            fetch('/api/check_alarm_status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusDiv = document.getElementById('alarmStatus');
+                    statusDiv.innerHTML = `All alarms are ${data.all_active ? 'active' : 'inactive'}`;
+                    statusDiv.className = `alarm-status ${data.all_active ? 'text-success' : 'text-danger'}`;
+                    
+                    // Update user states
+                    updateUserList(data.user_states);
+                });
+        }
+
+        function updateAlarmTime() {
+            fetch('/api/get_alarm_time')
+                .then(response => response.json())
+                .then(data => {
+                    const timeDisplay = document.getElementById('alarmTimeDisplay');
+                    if (data.alarm_time) {
+                        timeDisplay.textContent = data.alarm_time;
+                    } else {
+                        timeDisplay.textContent = 'Not set';
+                    }
+                });
+        }
+
+        function setAlarmTime() {
+            const timeInput = document.getElementById('alarmTime');
+            const time = timeInput.value;
+            
+            if (!time) {
+                alert('Please select a time first!');
+                return;
+            }
+            
+            fetch('/api/set_alarm_time', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ time: time })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert();
+                    updateAlarmStatus();
+                    updateAlarmTime();
+                } else {
+                    alert('Error setting alarm time');
+                }
+            });
+        }
+
+        function toggleUserAlarm(username) {
+            fetch(`/api/toggle_alarm/${username}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateAlarmStatus();
+                }
+            });
+        }
+
+        function updateUserList(userStates) {
+            const userListDiv = document.getElementById('userList');
+            userListDiv.innerHTML = '';
+            
+            Object.entries(userStates).forEach(([username, isActive]) => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-item d-flex justify-content-between align-items-center';
+                userDiv.innerHTML = `
+                    <span>${username}</span>
+                    <div>
+                        <span class="${isActive ? 'status-active' : 'status-inactive'}">
+                            ${isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="toggleUserAlarm('${username}')">
+                            Toggle
+                        </button>
+                    </div>
+                `;
+                userListDiv.appendChild(userDiv);
+            });
+        }
+
+        function addUser() {
+            const username = prompt('Enter username:');
+            if (username) {
+                fetch(`/api/toggle_alarm/${username}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        updateAlarmStatus();
+                    }
+                });
+            }
+        }
+
+        // Initial status update
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAlarmStatus();
+            updateAlarmTime();
+            
+            // Update status every 5 seconds
+            setInterval(() => {
+                updateAlarmStatus();
+                updateAlarmTime();
+            }, 5000);
+        });
+    </script>
+</body>
+</html> 
